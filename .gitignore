@@ -2,3 +2,4 @@ bin/
 obj/
 Starcraft/
 starcraft
+userGamePreference.json

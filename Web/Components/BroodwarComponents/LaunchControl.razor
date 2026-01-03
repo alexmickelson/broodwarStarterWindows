@@ -1,19 +1,20 @@
-@using MyBotWeb.Services
+@using Web.Services
 @using System.Reflection.Metadata
-@inject StarCraftService StarCraftService
-@inject BotService BotService
-@inject UserPreferencesService PreferencesService
+@using Shared
+@inject StarCraftService starCraftService
+@inject MyStarcraftBot myStarcraftBot
+@inject UserPreferencesService preferencesService
+@implements IDisposable
 
 <div class="">
-    @if (!_isLaunching && !_isReady)
+    @if (!_isLaunching && !myStarcraftBot.InGame)
     {
-        <h2 class="text-2xl font-bold mb-6">Auto-Launch Game</h2>
+        <h2 class="fs-2 fw-bold mb-4">Auto-Launch Game</h2>
 
-        <div class="space-y-6">
+        <div class="">
             <div class="mb-3">
-                <label class="block mb-2">Map</label>
-                <select class="block w-full px-3 py-2 border @borderStyle rounded" @bind="_mapPath"
-                    @bind:after="UpdateMaxPlayers">
+                <label class="form-label">Map</label>
+                <select class="form-select" @bind="_mapPath" @bind:after="UpdateMaxPlayers">
                     @foreach (var map in _availableMaps)
                     {
                         <option value="@map">@map</option>
@@ -21,18 +22,13 @@
                 </select>
             </div>
 
-            <div>
-                <div class=" mb-3">Player Slots (@_maxPlayers players)</div>
-                <div class="space-y-2">
-                    <div class="flex ">
-                        <span
-                            class="flex items-center px-4 py-3 border @borderStyle border-r-0 rounded-l-lg font-medium text-sm ">Player
-                            1</span>
-                        <span class="flex items-center px-3 py-3 border @borderStyle font-medium text-sm">Server
-                            (You)</span>
-                        <select
-                            class="unstyled bg-gray-900 ps-3 flex-1 border @borderStyle border-l-0 rounded-r-lg cursor-pointer hover:bg-gray-800 hover:border-gray-200"
-                            @bind="_playerRace">
+            <div class="mt-3">
+                <div class="mb-3">Player Slots (@_maxPlayers players)</div>
+                <div class="">
+                    <div class="input-group mb-2">
+                        <span class="input-group-text">Player 1</span>
+                        <span class="input-group-text">Server (You)</span>
+                        <select class="form-select" @bind="_playerRace">
                             <option value="Terran">Terran</option>
                             <option value="Protoss">Protoss</option>
                             <option value="Zerg">Zerg</option>
@@ -42,13 +38,9 @@
                     @for (int i = 1; i < _maxPlayers; i++)
                     {
                         var index = i;
-                        <div class="flex">
-                            <span
-                                class="flex items-center px-4 py-3 border @borderStyle border-r-0 rounded-l-lg font-medium text-sm">Player
-                                @(i + 1)</span>
-                            <select
-                                class="unstyled bg-gray-900 px-3 py-3 flex-1 border @borderStyle rounded-r-lg cursor-pointer hover:bg-gray-800 hover:border-gray-200"
-                                @bind="_playerSlots[index]">
+                        <div class="input-group mb-2">
+                            <span class="input-group-text">Player @(i + 1)</span>
+                            <select class="form-select" @bind="_playerSlots[index]">
                                 <option value="None">None</option>
                                 <option value="Open">Open (Other Player)</option>
                                 <option value="Computer - Terran">Computer - Terran</option>
@@ -62,9 +54,9 @@
             </div>
 
             <div class="pt-2">
-                <div class="flex items-start">
-                    <input class="mt-1 mr-3 w-4 h-4" type="checkbox" id="allowUserControl" @bind="_allowUserControl" />
-                    <label class="text-sm cursor-pointer select-none" for="allowUserControl">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="allowUserControl" @bind="_allowUserControl" />
+                    <label class="form-check-label" for="allowUserControl">
                         Allow User Control (share control of units with bot)
                     </label>
                 </div>
@@ -72,16 +64,12 @@
 
         </div>
 
-        <div class="text-center pt-4 space-y-3">
-            <button
-                class="px-8 py-3 bg-blue-900 hover:bg-blue-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-150"
-                @onclick="StartLaunch">
+        <div class="text-center pt-4">
+            <button class="btn btn-primary px-4 py-2 fw-semibold shadow" @onclick="StartLaunch">
                 Auto-Launch Game and Map
             </button>
-            <div>
-                <button
-                    class="px-8 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-150"
-                    @onclick="ManualLaunch">
+            <div class="mt-3">
+                <button class="btn btn-secondary px-4 py-2 fw-semibold shadow" @onclick="ManualLaunch">
                     Manual Launch (Join Game Yourself)
                 </button>
             </div>
@@ -89,34 +77,31 @@
     }
     else if (_isLaunching)
     {
-        <EndGame />
-        <div class="text-center py-8">
-            <h2 class="text-2xl font-bold mb-6">Launching...</h2>
-            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500/20 border-t-blue-500 mb-6"
-                role="status">
+        @* <EndGame /> *@
+        <div class="text-center py-5">
+            <h2 class="fs-2 fw-bold mb-4">Launching...</h2>
+            <div class="spinner-border text-primary mb-4" style="width: 3rem; height: 3rem;" role="status">
                 <span class="sr-only">Loading...</span>
             </div>
             @if (_waitingForUser)
             {
-                <div class="border-l-4 border-yellow-500 bg-yellow-500/10 rounded-r-lg p-4 mt-3 text-left" role="alert">
+                <div class="alert alert-warning mt-3 text-start border-start border-4" role="alert">
                     <strong>Action Required:</strong> Please click "Start" in Chaoslauncher, then start a game in StarCraft
                 </div>
             }
         </div>
     }
-    else if (_isReady)
+    else if (myStarcraftBot.InGame)
     {
-        <div class="text-center py-8">
-            <h2 class="text-2xl font-bold text-green-500 mb-3">✓ Connected!</h2>
-            <p class="text-gray-400">Bot is connected to StarCraft</p>
+        <div class="text-center py-5">
+            <h2 class="fs-2 fw-bold text-success mb-3">✓ Connected!</h2>
+            <p class="text-muted">Bot is connected to StarCraft</p>
         </div>
     }
 </div>
 
 @code {
-    private string borderStyle = "border-gray-700";
     private bool _isLaunching = false;
-    private bool _isReady = false;
     private bool _waitingForUser = false;
     private List<string> _statusMessages = new();
     private string _mapPath = "maps/(2)Boxer.scm";
@@ -138,9 +123,9 @@
 
     protected override void OnInitialized()
     {
-        _availableMaps = StarCraftService.GetMapOptions();
+        _availableMaps = starCraftService.GetMapOptions();
 
-        var savedPreferences = PreferencesService.LoadPreferences();
+        var savedPreferences = preferencesService.LoadPreferences();
         if (savedPreferences != null)
         {
             _mapPath = savedPreferences.Map;
@@ -158,6 +143,15 @@
         }
 
         UpdateMaxPlayers();
+
+        myStarcraftBot.StatusChanged += Refresh;
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        myStarcraftBot.StatusChanged -= Refresh;
     }
 
     private int GetMaxPlayersFromMap(string mapPath)
@@ -211,15 +205,14 @@
 
     private async Task StartLaunch()
     {
-        PreferencesService.SavePreferences(gamePreferences);
+        preferencesService.SavePreferences(gamePreferences);
 
         _isLaunching = true;
         await InvokeAsync(StateHasChanged);
-        var _ = Task.Run(() => BotService.StartBot());
+        myStarcraftBot.Connect();
 
-        await Task.Delay(500);
 
-        await StarCraftService.StartStarCraftAsync(gamePreferences);
+        starCraftService.StartStarCraft(gamePreferences);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -227,13 +220,9 @@
     {
         _isLaunching = true;
         await InvokeAsync(StateHasChanged);
-        var _ = Task.Run(() => BotService.StartBot());
-
-        await Task.Delay(500);
-
-        await StarCraftService.StartStarCraftAsync(gamePreferences with
+        myStarcraftBot.Connect();
+        starCraftService.StartStarCraft(gamePreferences with
         {
-
             AutoMenu = "OFF"
         });
         await InvokeAsync(StateHasChanged);

@@ -1,10 +1,14 @@
+using Shared;
 using Web.Components;
+using Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+builder.Services.AddSingleton<MyStarcraftBot>();
+builder.Services.AddSingleton<StarCraftService>();
+builder.Services.AddSingleton<UserPreferencesService>();
 
 var app = builder.Build();
 
@@ -16,13 +20,12 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-builder.Services.AddSingleton<StarCraftService>();
-
 app.UseAntiforgery();
 
 app.MapStaticAssets();
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+
+var starcraftService = app.Services.GetRequiredService<StarCraftService>();
 
 app.Run();
 
