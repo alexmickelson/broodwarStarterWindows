@@ -44,8 +44,6 @@ function Configure-Registry {
         [string]$InstallPath
     )
     
-    Write-Host "Configuring registry..." -ForegroundColor Cyan
-    
     New-Item -Path "HKCU:\Software\Chaoslauncher\Launcher" -Force | Out-Null
     Set-ItemProperty "HKCU:\Software\Chaoslauncher\Launcher" -Name "GameVersion" -Value "Starcraft 1.16.1"
     Set-ItemProperty "HKCU:\Software\Chaoslauncher\Launcher" -Name "RunScOnStartup" -Value 1 -Type DWord
