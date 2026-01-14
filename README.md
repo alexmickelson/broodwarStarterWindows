@@ -18,7 +18,7 @@ Run the `setup.ps1` script. This will download and extract a working version of 
 
 ## Zero-to-hero getting started videos
 
-Dave Churchill made two youtube videos as part of this "AI for Video Games" college course. These are good breakdowns of the Broodwar game. The most important parts are the second half of each video. You can also check out [his git repo](https://github.com/davechurchill/STARTcraftle) and read that code for ideas
+Dave Churchill made two youtube videos as part of this "AI for Video Games" college course. These are good breakdowns of the Broodwar game. The most important parts are the second half of each video. You can also check out [his git repo](https://github.com/davechurchill/STARTcraft) and read that code for ideas
 
 ### Dave Churchill Intro to StarCraft
 
