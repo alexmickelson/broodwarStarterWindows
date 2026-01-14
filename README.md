@@ -7,11 +7,14 @@ Clone this repository. Make sure to give your personal repository a cool name to
 Run the `setup.ps1` script. This will download and extract a working version of StarCraft Broodwar with the required BWAPI extensions. Run the `Web` project and click start game. A game should automatically start and you should see the words "Hello Bot" on the screen.
 
 
-## Important links and resources 
+## Links and resources 
 
 - [BWAPI Wiki](https://bwapi.github.io/)
 - [BWAPI.NET](https://github.com/acoto87/bwapi.net) C# library this repo uses (some starting code available here)
 - [Broodwar Bot Community Wiki](https://www.starcraftai.com/wiki/Main_Page)
+- [C# map analysis library](https://github.com/acoto87/bwem.net)
+- [Student Starcraft AI Tournament and Ladder](https://sscaitournament.com/)
+- [Basil Bot Ladder](https://www.basil-ladder.net)
 
 ## Zero-to-hero getting started videos
 
