@@ -70,7 +70,11 @@ $url = "https://snow0-my.sharepoint.com/:u:/g/personal/alex_mickelson_snow_edu1/
 $zip = "$env:TEMP\Starcraft.zip"
 $dest = "$PSScriptRoot\Starcraft"
 
-Download-StarCraft -Url $url -ZipPath $zip -Destination $dest
+if (Test-Path $dest) {
+    Write-Host "StarCraft folder already exists. Skipping download..." -ForegroundColor Yellow
+} else {
+    Download-StarCraft -Url $url -ZipPath $zip -Destination $dest
+}
 Configure-Registry -InstallPath $dest
 
 Write-Host "Installation complete!" -ForegroundColor Green
