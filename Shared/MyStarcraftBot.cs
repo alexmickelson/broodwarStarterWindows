@@ -15,6 +15,9 @@ public class MyStarcraftBot : DefaultBWListener
 
     public event Action? StatusChanged;
 
+    private MapTools map = new MapTools();
+    private bool drawTileGrid = false;
+
     public void Connect()
     {
         _bwClient = new BWClient(this);
@@ -53,12 +56,27 @@ public class MyStarcraftBot : DefaultBWListener
     {
         if (Game == null)
             return;
+        if (Game.GetFrameCount() < 10)
+        {
+            if (map.Initilized && !drawTileGrid)
+            {
+                drawTileGrid = true;
+            }
+
+        }
+        if (!map.Initilized)
+        {
+            map.Initialize(Game);
+        }
         if (GameSpeedToSet != null)
         {
             Game.SetLocalSpeed(GameSpeedToSet.Value);
             GameSpeedToSet = null;
         }
         Game.DrawTextScreen(100, 100, "Hello Bot!");
+
+        if (drawTileGrid)
+            map.DrawGrid(Game);
     }
 
     public override void OnUnitComplete(Unit unit) { }
@@ -67,7 +85,17 @@ public class MyStarcraftBot : DefaultBWListener
 
     public override void OnUnitMorph(Unit unit) { }
 
-    public override void OnSendText(string text) { }
+    public override void OnSendText(string text)
+    {
+
+        if (Game == null) return;
+
+        if (text.Trim().Contains("/tiles"))
+        {
+            drawTileGrid = !drawTileGrid;
+            Game.SendText($"Tile grid drawing toggled to {drawTileGrid}");
+        }
+    }
 
     public override void OnReceiveText(Player player, string text) { }
 
