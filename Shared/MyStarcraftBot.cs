@@ -30,6 +30,7 @@ public class MyStarcraftBot : DefaultBWListener
     private string _logFilePath = "";
     private object _logLock = new object();
     private int _nextPylonAngle = 0; // Track angle for next pylon placement
+    private int _nextCannonAngle = 45; // Track angle for next cannon placement (offset from pylons)
     private int _targetCannonCount = 6; // How many cannons we want
     private int _targetStargateCount = 2; // How many stargates we want
     private int _lastBuildFrame = 0; // Track last build command to prevent spam
@@ -40,6 +41,8 @@ public class MyStarcraftBot : DefaultBWListener
     private Position? _expansionLocation = null; // Track where our expansion is
     private int _lastScoutTime = 0; // Track when we last sent carriers to scout
     private Position? _scoutTarget = null; // Current scout destination
+    private HashSet<int> _probesAssignedThisFrame = new HashSet<int>(); // Track probes assigned to build tasks this frame
+    private int _lastFrameProcessed = -1; // Track which frame we last processed
 
     public void Connect()
     {
@@ -142,6 +145,13 @@ public class MyStarcraftBot : DefaultBWListener
         var self = Game.Self();
         if (self == null || _baseLocation == null)
             return;
+
+        // Reset probe assignment tracking at the start of each frame
+        if (_lastFrameProcessed != Game.GetFrameCount())
+        {
+            _probesAssignedThisFrame.Clear();
+            _lastFrameProcessed = Game.GetFrameCount();
+        }
 
         // Display status
         DisplayStatus(self);
@@ -536,27 +546,99 @@ public class MyStarcraftBot : DefaultBWListener
         if (nexuses.Count >= 3)
             return;
 
-        // Find a new mineral patch far from existing bases
-        var existingNexusPositions = nexuses.Select(n => n.GetPosition()).ToList();
-        var expansionMinerals = Game.GetMinerals()
-            .Where(m => existingNexusPositions.All(pos => m.GetDistance(pos) > 500)) // Far from existing bases
-            .OrderBy(m => m.GetDistance(_baseLocation!.Value)) // Prefer closer expansions first
-            .FirstOrDefault();
+        // Need enough resources
+        if (self.Minerals() < 400)
+            return;
 
-        if (expansionMinerals != null && self.Minerals() >= 400)
+        var probe = self.GetUnits()
+            .Where(u => u.GetUnitType() == UnitType.Protoss_Probe)
+            .Where(u => !u.IsConstructing() && u.GetOrder() != Order.PlaceBuilding)
+            .Where(u => !_probesAssignedThisFrame.Contains(u.GetID()))
+            .FirstOrDefault();
+        
+        if (probe == null)
+            return;
+        
+        _probesAssignedThisFrame.Add(probe.GetID());
+
+        // Find the best expansion location by looking for mineral clusters
+        var existingNexusPositions = nexuses.Select(n => n.GetPosition()).ToList();
+        
+        // Group minerals into clusters (minerals within 300 pixels of each other)
+        // Group minerals into clusters (minerals within 300 pixels of each other)
+        var allMinerals = Game.GetMinerals().ToList();
+        var mineralClusters = new List<List<Unit>>();
+        
+        foreach (var mineral in allMinerals)
         {
-            var probe = self.GetUnits().FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Probe && !u.IsConstructing());
-            if (probe != null)
+            var addedToCluster = false;
+            foreach (var cluster in mineralClusters)
             {
-                // Try to build near the expansion minerals
-                var buildPos = new TilePosition(expansionMinerals.GetTilePosition().X - 2, expansionMinerals.GetTilePosition().Y - 1);
-                if (Game.CanBuildHere(buildPos, UnitType.Protoss_Nexus, probe))
+                if (cluster.Any(m => m.GetDistance(mineral.GetPosition()) < 300))
                 {
-                    probe.Build(UnitType.Protoss_Nexus, buildPos);
-                    _expansionLocation = new Position(buildPos.X * 32, buildPos.Y * 32);
-                    Log($"Building expansion nexus at new mineral location");
+                    cluster.Add(mineral);
+                    addedToCluster = true;
+                    break;
                 }
             }
+            if (!addedToCluster)
+            {
+                mineralClusters.Add(new List<Unit> { mineral });
+            }
+        }
+
+        // Find a cluster far from existing bases (at least 500 pixels away)
+        var expansionCluster = mineralClusters
+            .Where(cluster => cluster.Count >= 6) // Need at least 6 mineral patches
+            .Where(cluster => existingNexusPositions.All(pos => 
+                cluster.Average(m => m.GetDistance(pos)) > 500))
+            .OrderBy(cluster => cluster.Min(m => m.GetDistance(_baseLocation!.Value)))
+            .FirstOrDefault();
+
+        if (expansionCluster != null && expansionCluster.Count > 0)
+        {
+            // Find the center of the mineral cluster
+            var centerX = (int)expansionCluster.Average(m => m.GetPosition().X);
+            var centerY = (int)expansionCluster.Average(m => m.GetPosition().Y);
+            var clusterCenter = new TilePosition(centerX / 32, centerY / 32);
+
+            // Try to find a valid build location near the cluster center
+            var buildPos = Game.GetBuildLocation(UnitType.Protoss_Nexus, clusterCenter, 10);
+            
+            if (Game.CanBuildHere(buildPos, UnitType.Protoss_Nexus, probe))
+            {
+                probe.Build(UnitType.Protoss_Nexus, buildPos);
+                _expansionLocation = new Position(buildPos.X * 32, buildPos.Y * 32);
+                Log($"Building expansion nexus at {buildPos.X}, {buildPos.Y} with {expansionCluster.Count} minerals nearby");
+            }
+            else
+            {
+                Log($"Cannot build expansion at {buildPos.X}, {buildPos.Y} - searching for alternative location");
+                
+                // Try alternative positions in a spiral pattern
+                for (int radius = 1; radius <= 15; radius++)
+                {
+                    for (int angle = 0; angle < 360; angle += 45)
+                    {
+                        var offsetX = (int)(radius * Math.Cos(angle * Math.PI / 180));
+                        var offsetY = (int)(radius * Math.Sin(angle * Math.PI / 180));
+                        var testPos = new TilePosition(clusterCenter.X + offsetX, clusterCenter.Y + offsetY);
+                        
+                        if (Game.CanBuildHere(testPos, UnitType.Protoss_Nexus, probe))
+                        {
+                            probe.Build(UnitType.Protoss_Nexus, testPos);
+                            _expansionLocation = new Position(testPos.X * 32, testPos.Y * 32);
+                            Log($"Building expansion nexus at alternative location {testPos.X}, {testPos.Y}");
+                            return;
+                        }
+                    }
+                }
+                Log("Failed to find valid expansion location - will retry next cycle");
+            }
+        }
+        else
+        {
+            Log("No suitable expansion location found - need mineral cluster with 6+ patches");
         }
     }
 
@@ -583,9 +665,15 @@ public class MyStarcraftBot : DefaultBWListener
             if (Game.GetFrameCount() - _lastBuildFrame < 24)
                 return;
 
-            var probe = self.GetUnits().FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Probe && !u.IsConstructing());
+            var probe = self.GetUnits()
+                .Where(u => u.GetUnitType() == UnitType.Protoss_Probe)
+                .Where(u => !u.IsConstructing() && u.GetOrder() != Order.PlaceBuilding)
+                .Where(u => !_probesAssignedThisFrame.Contains(u.GetID()))
+                .FirstOrDefault();
+            
             if (probe != null)
             {
+                _probesAssignedThisFrame.Add(probe.GetID());
                 var pylonPos = new TilePosition(_expansionLocation.Value.X / 32 + 3, _expansionLocation.Value.Y / 32 + 2);
                 if (Game.CanBuildHere(pylonPos, UnitType.Protoss_Pylon, probe))
                 {
@@ -631,9 +719,15 @@ public class MyStarcraftBot : DefaultBWListener
 
             if (nearbyGeyser != null)
             {
-                var probe = self.GetUnits().FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Probe && !u.IsConstructing());
+                var probe = self.GetUnits()
+                    .Where(u => u.GetUnitType() == UnitType.Protoss_Probe)
+                    .Where(u => !u.IsConstructing() && u.GetOrder() != Order.PlaceBuilding)
+                    .Where(u => !_probesAssignedThisFrame.Contains(u.GetID()))
+                    .FirstOrDefault();
+                
                 if (probe != null)
                 {
+                    _probesAssignedThisFrame.Add(probe.GetID());
                     probe.Build(UnitType.Protoss_Assimilator, nearbyGeyser.GetTilePosition());
                     _lastBuildFrame = Game.GetFrameCount();
                     Log("Building assimilator at expansion");
@@ -668,24 +762,36 @@ public class MyStarcraftBot : DefaultBWListener
         if (Game.GetFrameCount() - _lastBuildFrame < 24)
             return;
 
-        var probe = self.GetUnits().FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Probe && !u.IsCarryingMinerals() && !u.IsCarryingGas() && !u.IsConstructing());
+        var probe = self.GetUnits()
+            .Where(u => u.GetUnitType() == UnitType.Protoss_Probe)
+            .Where(u => !u.IsConstructing() && u.GetOrder() != Order.PlaceBuilding)
+            .Where(u => !_probesAssignedThisFrame.Contains(u.GetID()))
+            .FirstOrDefault(u => !u.IsCarryingMinerals() && !u.IsCarryingGas());
+        
         if (probe == null)
-            probe = self.GetUnits().FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Probe && !u.IsConstructing());
+            probe = self.GetUnits()
+                .Where(u => u.GetUnitType() == UnitType.Protoss_Probe)
+                .Where(u => !u.IsConstructing() && u.GetOrder() != Order.PlaceBuilding)
+                .Where(u => !_probesAssignedThisFrame.Contains(u.GetID()))
+                .FirstOrDefault();
 
         if (probe == null)
             return;
+        
+        _probesAssignedThisFrame.Add(probe.GetID());
 
         // Try to place pylons in a ring around the base
         // Place them at varying distances and angles to spread coverage
-        var existingPylons = self.GetUnits().Where(u => u.GetUnitType() == UnitType.Protoss_Pylon).Count();
+        var existingPylons = self.GetUnits().Where(u => u.GetUnitType() == UnitType.Protoss_Pylon).ToList();
         
-        // Alternate between closer and farther rings
-        var distance = (existingPylons % 2 == 0) ? 12 : 18; // tiles from base
+        // Use multiple distance rings (10, 14, 18, 22 tiles) for better spread
+        int[] distanceRings = { 10, 14, 18, 22 };
+        var distance = distanceRings[existingPylons.Count % distanceRings.Length];
         
         // Try multiple angles to find a good spot
-        for (int attempt = 0; attempt < 12; attempt++)
+        for (int attempt = 0; attempt < 16; attempt++)
         {
-            var angle = (_nextPylonAngle + attempt * 30) % 360;
+            var angle = (int)((_nextPylonAngle + attempt * 22.5) % 360); // Smaller angle increments for better coverage
             var radians = angle * Math.PI / 180.0;
             
             var targetX = (int)(_baseLocation.Value.X + Math.Cos(radians) * distance * 32);
@@ -694,10 +800,13 @@ public class MyStarcraftBot : DefaultBWListener
             var targetTile = new TilePosition(targetX / 32, targetY / 32);
             
             // Check if this is a valid build location
-            if (Game.CanBuildHere(targetTile, UnitType.Protoss_Pylon, probe))
+            // Also check distance from existing pylons to avoid clustering
+            var tooClose = existingPylons.Any(p => p.GetDistance(targetPos) < 160); // At least 5 tiles apart
+            
+            if (Game.CanBuildHere(targetTile, UnitType.Protoss_Pylon, probe) && !tooClose)
             {
                 probe.Build(UnitType.Protoss_Pylon, targetTile);
-                _nextPylonAngle = (angle + 45) % 360; // Increment for next pylon
+                _nextPylonAngle = (angle + 30) % 360; // Increment for next pylon
                 _lastBuildFrame = Game.GetFrameCount();
                 Log($"Building pylon at angle {angle}° distance {distance} tiles");
                 return;
@@ -769,9 +878,15 @@ public class MyStarcraftBot : DefaultBWListener
             var geyser = Game.GetGeysers().OrderBy(g => g.GetDistance(_baseLocation!.Value)).FirstOrDefault();
             if (geyser != null)
             {
-                var probe = self.GetUnits().FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Probe && !u.IsConstructing());
+                var probe = self.GetUnits()
+                    .Where(u => u.GetUnitType() == UnitType.Protoss_Probe)
+                    .Where(u => !u.IsConstructing() && u.GetOrder() != Order.PlaceBuilding)
+                    .Where(u => !_probesAssignedThisFrame.Contains(u.GetID()))
+                    .FirstOrDefault();
+                
                 if (probe != null)
                 {
+                    _probesAssignedThisFrame.Add(probe.GetID());
                     probe.Build(UnitType.Protoss_Assimilator, geyser.GetTilePosition());
                     _lastBuildFrame = Game.GetFrameCount();
                     Log("Building/rebuilding Assimilator");
@@ -1000,7 +1115,7 @@ public class MyStarcraftBot : DefaultBWListener
                 carrier.Move(_baseLocation.Value);
             }
             // Only command idle carriers or those close to their patrol point
-            else if (carrier.IsIdle() || (carrier.GetTargetPosition() != null && carrier.GetDistance(carrier.GetTargetPosition()!) < 50))
+            else if (carrier.IsIdle() || carrier.GetDistance(carrier.GetTargetPosition()!) < 50)
             {
                 // Calculate patrol point in a circle around base (radius ~12 tiles - closer to base)
                 var radius = 384; // pixels (12 tiles)
@@ -1192,10 +1307,7 @@ public class MyStarcraftBot : DefaultBWListener
                 if (closestEnemy != null)
                 {
                     var enemyPos = closestEnemy.GetPosition();
-                    if (enemyPos != null)
-                    {
-                        _attackTarget = enemyPos;
-                    }
+                    _attackTarget = enemyPos;
                 }
             }
             else
@@ -1288,14 +1400,56 @@ public class MyStarcraftBot : DefaultBWListener
         if (Game.GetFrameCount() - _lastBuildFrame < 24)
             return false;
 
-        var probe = self.GetUnits().FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Probe && !u.IsCarryingMinerals() && !u.IsCarryingGas() && !u.IsConstructing());
+        var probe = self.GetUnits()
+            .Where(u => u.GetUnitType() == UnitType.Protoss_Probe)
+            .Where(u => !u.IsConstructing() && u.GetOrder() != Order.PlaceBuilding)
+            .Where(u => !_probesAssignedThisFrame.Contains(u.GetID()))
+            .FirstOrDefault(u => !u.IsCarryingMinerals() && !u.IsCarryingGas());
+        
         if (probe == null)
-            probe = self.GetUnits().FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Probe && !u.IsConstructing());
+            probe = self.GetUnits()
+                .Where(u => u.GetUnitType() == UnitType.Protoss_Probe)
+                .Where(u => !u.IsConstructing() && u.GetOrder() != Order.PlaceBuilding)
+                .Where(u => !_probesAssignedThisFrame.Contains(u.GetID()))
+                .FirstOrDefault();
 
         if (probe == null)
             return false;
+        
+        _probesAssignedThisFrame.Add(probe.GetID());
 
-        // Find a build location near the base
+        // Special placement for cannons - spread them in a defensive ring
+        if (buildingType == UnitType.Protoss_Photon_Cannon)
+        {
+            var existingCannons = self.GetUnits().Where(u => u.GetUnitType() == UnitType.Protoss_Photon_Cannon).ToList();
+            int[] cannonDistances = { 8, 11, 14 }; // Defensive perimeter distances
+            var distance = cannonDistances[existingCannons.Count % cannonDistances.Length];
+            
+            // Try angles around the base
+            for (int attempt = 0; attempt < 16; attempt++)
+            {
+                var angle = (int)((_nextCannonAngle + attempt * 22.5) % 360);
+                var radians = angle * Math.PI / 180.0;
+                
+                var targetX = (int)(_baseLocation.Value.X + Math.Cos(radians) * distance * 32);
+                var targetY = (int)(_baseLocation.Value.Y + Math.Sin(radians) * distance * 32);
+                var targetPos = new Position(targetX, targetY);
+                var targetTile = new TilePosition(targetX / 32, targetY / 32);
+                
+                // Check if location is valid and not too close to other cannons
+                var tooClose = existingCannons.Any(c => c.GetDistance(targetPos) < 128); // At least 4 tiles apart
+                
+                if (Game.CanBuildHere(targetTile, UnitType.Protoss_Photon_Cannon, probe) && !tooClose)
+                {
+                    probe.Build(UnitType.Protoss_Photon_Cannon, targetTile);
+                    _nextCannonAngle = (angle + 35) % 360;
+                    _lastBuildFrame = Game.GetFrameCount();
+                    return true;
+                }
+            }
+        }
+        
+        // Default building logic for non-cannons or fallback
         var buildTile = Game.GetBuildLocation(buildingType, probe.GetTilePosition(), 64);
         probe.Build(buildingType, buildTile);
         _lastBuildFrame = Game.GetFrameCount();
