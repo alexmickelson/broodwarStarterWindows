@@ -26,6 +26,7 @@ public class MyStarcraftBot : DefaultBWListener
     private bool controlledByHuman = false;
     private MapTools mapTools = new MapTools();
     private int buildId = -1;
+    private int textLine = 10;
 
     #region start
     public void Connect()
@@ -78,6 +79,7 @@ public class MyStarcraftBot : DefaultBWListener
         {
             mapTools.Initialize(Game);
         }
+        textLine = 10;
 
         if (buildId == -1)
         {
@@ -104,7 +106,7 @@ public class MyStarcraftBot : DefaultBWListener
             // Ramp up probes
             var nexus = Game.Self().GetUnits().FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Nexus);
             var probeCount = Game.Self().GetUnits().Count(u => u.GetUnitType() == UnitType.Protoss_Probe);
-            if (nexus != null && probeCount < 20 && !nexus.IsTraining()
+            if (nexus != null && probeCount < 12 && !nexus.IsTraining()
                 && UnitType.Protoss_Probe.MineralPrice() <= Game.Self().Minerals())
             {
                 nexus.Train(UnitType.Protoss_Probe);
@@ -112,11 +114,11 @@ public class MyStarcraftBot : DefaultBWListener
             }
 
             var pylonsBuiltOrInProgress = Game.Self().GetUnits()
-                .Count(u => u.GetUnitType() == UnitType.Protoss_Pylon
+                .Where(u => u.GetUnitType() == UnitType.Protoss_Pylon
                 && (u.IsCompleted() || u.IsBeingConstructed()));
             var builder = Game.Self().GetUnits()
                 .FirstOrDefault(u => u.GetID() == buildId);
-            if (pylonsBuiltOrInProgress == 0 && probeCount >= 8 &&
+            if (!pylonsBuiltOrInProgress.Any() && probeCount >= 8 &&
                 builder != null && !builder.IsConstructing())
             {
                 // Build first pylon
@@ -128,6 +130,23 @@ public class MyStarcraftBot : DefaultBWListener
                     var buildLocation = Game.GetBuildLocation(
                         UnitType.Protoss_Pylon, location, 5, false);
                     builder.Build(UnitType.Protoss_Pylon, buildLocation);
+                    return;
+                }
+            }
+            var forge = Game.Self().GetUnits()
+                .FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Forge);
+            if (pylonsBuiltOrInProgress.Any() &&
+                pylonsBuiltOrInProgress.First().IsCompleted() &&
+                probeCount >= 12 && forge == null &&
+                builder != null && !builder.IsConstructing())
+            {
+                if (builder != null && !builder.IsConstructing()
+                    && UnitType.Protoss_Forge.MineralPrice() <= Game.Self().Minerals())
+                {
+                    var location = pylonsBuiltOrInProgress.First().GetTilePosition();
+                    var buildLocation = Game.GetBuildLocation(
+                        UnitType.Protoss_Forge, location, 4, false);
+                    builder.Build(UnitType.Protoss_Forge, buildLocation);
                     return;
                 }
             }
@@ -167,19 +186,28 @@ public class MyStarcraftBot : DefaultBWListener
         var myUnits = Game.Self().GetUnits();
         foreach (var unit in myUnits)
         {
-            Game.DrawTextMap(unit.GetPosition().X, unit.GetPosition().Y - 10,
+            Game.DrawTextMap(unit.GetPosition().X + 20, unit.GetPosition().Y,
                 $"{unit.GetID()}-{unit.GetHitPoints()}");
         }
 
-        Game.DrawTextScreen(10, 10, $"Frame: {Game.GetFrameCount()}");
-        Game.DrawTextScreen(10, 25, $"Controlled by human: {controlledByHuman}");
-        Game.DrawTextScreen(10, 40, $"Game State: {currentGameState}");
+        Game.DrawTextScreen(10, textLine, $"Frame: {Game.GetFrameCount()}");
+        Game.DrawTextScreen(10, textLine + 15, $"Controlled by human: {controlledByHuman}");
+        Game.DrawTextScreen(10, textLine + 30, $"Game State: {currentGameState}");
+        textLine += 45;
         if (buildId != -1)
         {
             var builder = Game.Self().GetUnits()
                 .FirstOrDefault(u => u.GetID() == buildId);
-            Game.DrawTextScreen(10, 55, $"Build Id: {buildId}; IsConstructing: {builder?.IsConstructing()}");
+            Game.DrawTextScreen(10, textLine, $"Build Id: {buildId}; IsConstructing: {builder?.IsConstructing()}");
+            textLine += 15;
         }
+
+        // var buildings = Game.Self().GetUnits().Where(u => u.GetUnitType().IsBuilding());
+        // foreach (var building in buildings)
+        // {
+        //     Game.DrawTextScreen(10, textLine, $"{building.IsCompleted()}");
+        //     textLine += 15;
+        // }
     }
 
     #region other

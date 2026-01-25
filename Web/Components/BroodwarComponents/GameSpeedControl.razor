@@ -10,6 +10,8 @@
             <button type="button" class="btn @(_gameSpeed == 0 ? "btn-primary" : "btn-outline-primary")" @onclick="() => SetSpeed(0)">Fastest</button>
             <button type="button" class="btn @(_gameSpeed == 1 ? "btn-primary" : "btn-outline-primary")" @onclick="() => SetSpeed(1)">Fast</button>
             <button type="button" class="btn @(_gameSpeed == 42 ? "btn-primary" : "btn-outline-primary")" @onclick="() => SetSpeed(42)">Normal</button>
+            <button type="button" class="btn @(_gameSpeed == 80 ? "btn-primary" : "btn-outline-primary")" @onclick="() => SetSpeed(80)">Slow</button>
+            <button type="button" class="btn @(_gameSpeed == 120 ? "btn-primary" : "btn-outline-primary")" @onclick="() => SetSpeed(120)">Extra Slow</button>
         </div>
     </div>
 </div>
