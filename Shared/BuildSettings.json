@@ -1,0 +1,10 @@
+{
+    "FirstProbesToPylon": 7,
+    "ForgeProbeThreshold": 9,
+    "ChangeToEarlyGameProbes": 15,
+
+    "EarlyCannonThreshold": 4,
+    "EarlyGatewayThreshold": 2,
+    "EarlyGameProbes": 20,
+    "EarlyGamePylons": 3
+}

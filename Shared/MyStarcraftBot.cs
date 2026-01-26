@@ -6,6 +6,7 @@ namespace Shared;
 
 public enum GameState
 {
+    IntialGame,
     EarlyGame,
     MidGame,
     LateGame,
@@ -22,11 +23,12 @@ public class MyStarcraftBot : DefaultBWListener
 
     public event Action? StatusChanged;
 
-    private GameState currentGameState = GameState.EarlyGame;
+    private GameState currentGameState = GameState.IntialGame;
     private bool controlledByHuman = false;
     private MapTools mapTools = new MapTools();
     private int buildId = -1;
     private int textLine = 10;
+    BuildSetting buildSetting = new BuildSetting();
 
     #region start
     public void Connect()
@@ -56,7 +58,8 @@ public class MyStarcraftBot : DefaultBWListener
         StatusChanged?.Invoke();
         Game?.EnableFlag(Flag.UserInput); // let human control too
 
-        currentGameState = GameState.EarlyGame;
+        currentGameState = GameState.IntialGame;
+        buildSetting = BuildSetting.GetSettings();
     }
 
     public override void OnEnd(bool isWinner)
@@ -81,14 +84,7 @@ public class MyStarcraftBot : DefaultBWListener
         }
         textLine = 10;
 
-        if (buildId == -1)
-        {
-            var probes = Game.Self().GetUnits().Where(u => u.GetUnitType() == UnitType.Protoss_Probe);
-            if (probes.Any())
-            {
-                buildId = probes.First().GetID();
-            }
-        }
+        CheckBuilder();
 
         DrawDebugInfo();
 
@@ -101,55 +97,14 @@ public class MyStarcraftBot : DefaultBWListener
             BackToWork();
         }
 
-        if (currentGameState == GameState.EarlyGame)
+        if (currentGameState == GameState.IntialGame)
         {
-            // Ramp up probes
-            var nexus = Game.Self().GetUnits().FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Nexus);
-            var probeCount = Game.Self().GetUnits().Count(u => u.GetUnitType() == UnitType.Protoss_Probe);
-            if (nexus != null && probeCount < 12 && !nexus.IsTraining()
-                && UnitType.Protoss_Probe.MineralPrice() <= Game.Self().Minerals())
-            {
-                nexus.Train(UnitType.Protoss_Probe);
-                return;
-            }
+            InitialGameLogic();
+        }
 
-            var pylonsBuiltOrInProgress = Game.Self().GetUnits()
-                .Where(u => u.GetUnitType() == UnitType.Protoss_Pylon
-                && (u.IsCompleted() || u.IsBeingConstructed()));
-            var builder = Game.Self().GetUnits()
-                .FirstOrDefault(u => u.GetID() == buildId);
-            if (!pylonsBuiltOrInProgress.Any() && probeCount >= 8 &&
-                builder != null && !builder.IsConstructing())
-            {
-                // Build first pylon
-                if (builder != null && !builder.IsConstructing()
-                    && UnitType.Protoss_Pylon.MineralPrice() <= Game.Self().Minerals())
-                {
-                    var location = mapTools.GetBuildLocationTowardsBaseAccess(
-                        Game.Self().GetStartLocation());
-                    var buildLocation = Game.GetBuildLocation(
-                        UnitType.Protoss_Pylon, location, 5, false);
-                    builder.Build(UnitType.Protoss_Pylon, buildLocation);
-                    return;
-                }
-            }
-            var forge = Game.Self().GetUnits()
-                .FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Forge);
-            if (pylonsBuiltOrInProgress.Any() &&
-                pylonsBuiltOrInProgress.First().IsCompleted() &&
-                probeCount >= 12 && forge == null &&
-                builder != null && !builder.IsConstructing())
-            {
-                if (builder != null && !builder.IsConstructing()
-                    && UnitType.Protoss_Forge.MineralPrice() <= Game.Self().Minerals())
-                {
-                    var location = pylonsBuiltOrInProgress.First().GetTilePosition();
-                    var buildLocation = Game.GetBuildLocation(
-                        UnitType.Protoss_Forge, location, 4, false);
-                    builder.Build(UnitType.Protoss_Forge, buildLocation);
-                    return;
-                }
-            }
+        else if (currentGameState == GameState.EarlyGame)
+        {
+            EarlyGameLogic();
         }
 
 
@@ -177,7 +132,39 @@ public class MyStarcraftBot : DefaultBWListener
             }
         }
     }
+    private void CheckBuilder()
+    {
+        if (Game == null)
+            return;
 
+        if (buildId != -1)
+        {
+            var builder = Tools.GetBuilder(Game, buildId);
+            if (builder == null)
+            {
+                buildId = -1;
+            }
+        }
+        if (buildId == -1)
+        {
+            var newBuilder = Game.Self().GetUnits()
+                .FirstOrDefault(u => u.GetUnitType().IsWorker());
+            if (newBuilder != null)
+            {
+                buildId = newBuilder.GetID();
+            }
+        }
+    }
+    #region logging
+
+    private void LogToScreen(string message)
+    {
+        if (Game == null)
+            return;
+
+        Game.DrawTextScreen(10, textLine, message);
+        textLine += 15;
+    }
     private void DrawDebugInfo()
     {
         if (Game == null)
@@ -186,28 +173,168 @@ public class MyStarcraftBot : DefaultBWListener
         var myUnits = Game.Self().GetUnits();
         foreach (var unit in myUnits)
         {
-            Game.DrawTextMap(unit.GetPosition().X + 20, unit.GetPosition().Y,
-                $"{unit.GetID()}-{unit.GetHitPoints()}");
+            if (unit.IsCompleted())
+                Game.DrawTextMap(unit.GetPosition().X + 20, unit.GetPosition().Y,
+                    $"{unit.GetID()}-{unit.GetHitPoints()}");
+            else 
+                Game.DrawTextMap(unit.GetPosition().X + 20, unit.GetPosition().Y + 10,
+                    $"{unit.GetID()}-{unit.GetRemainingBuildTime()}");
         }
 
-        Game.DrawTextScreen(10, textLine, $"Frame: {Game.GetFrameCount()}");
-        Game.DrawTextScreen(10, textLine + 15, $"Controlled by human: {controlledByHuman}");
-        Game.DrawTextScreen(10, textLine + 30, $"Game State: {currentGameState}");
-        textLine += 45;
+        LogToScreen($"Frame: {Game.GetFrameCount()}");
+        LogToScreen($"Controlled by human: {controlledByHuman}");
+        LogToScreen($"Game State: {currentGameState}");
         if (buildId != -1)
         {
             var builder = Game.Self().GetUnits()
                 .FirstOrDefault(u => u.GetID() == buildId);
-            Game.DrawTextScreen(10, textLine, $"Build Id: {buildId}; IsConstructing: {builder?.IsConstructing()}");
-            textLine += 15;
+            LogToScreen($"Build Id: {buildId}; IsConstructing: {builder?.IsConstructing()}");
         }
 
         // var buildings = Game.Self().GetUnits().Where(u => u.GetUnitType().IsBuilding());
         // foreach (var building in buildings)
         // {
-        //     Game.DrawTextScreen(10, textLine, $"{building.IsCompleted()}");
-        //     textLine += 15;
+        //     LogToScreen($"{building.IsCompleted()}");
         // }
+    }
+    #endregion
+
+    private void InitialGameLogic()
+    {
+        if (Game == null) return;
+        LogToScreen("Initial Game Logic");
+
+        var nexus = Game.Self().GetUnits().FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Nexus);
+        if (nexus == null)
+        {
+            Console.WriteLine("No Nexus found!");
+            return;
+        }
+
+        var builder = Tools.GetBuilder(Game, buildId);
+        if (builder == null)
+        {
+            Console.WriteLine("No builder found!");
+            return;
+        }
+
+        var probeCount = Tools.GetUnitCount(Game, UnitType.Protoss_Probe, true);
+        LogToScreen($"Probes: {probeCount}");
+        var forge = Tools.GetUnits(Game, UnitType.Protoss_Forge, true)
+            .FirstOrDefault();
+        var pylonsBuiltOrInProgress = Tools.GetUnits(Game, UnitType.Protoss_Pylon, true);
+        LogToScreen($"Pylons: {pylonsBuiltOrInProgress.Count()}");
+
+        if (probeCount < buildSetting.FirstProbesToPylon)
+        {
+            LogToScreen("Training Probes - Initial");
+            Tools.BuildProbe(Game, nexus);
+        }
+        else if (!pylonsBuiltOrInProgress.Any())
+        {
+            LogToScreen("Building Pylon - Initial");
+            if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Pylon))
+            {
+                var buildLocation = Tools.GetBuildLocationTowardBaseAccess(Game, mapTools,
+                    UnitType.Protoss_Pylon);
+                builder.Build(UnitType.Protoss_Pylon, buildLocation);
+            }
+        }
+        else if (probeCount < buildSetting.ForgeProbeThreshold)
+        {
+            LogToScreen("Training Probes - Before Forge");
+            Tools.BuildProbe(Game, nexus);
+        }
+        else if (forge == null)
+        {
+            LogToScreen("Building Forge - Initial");
+            if (pylonsBuiltOrInProgress.Any(p => p.IsCompleted()) &&
+                probeCount >= buildSetting.ForgeProbeThreshold &&
+                !builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Forge))
+            {
+                var buildLocation = Tools.GetBuildLocationByPylon(Game, UnitType.Protoss_Forge,
+                    pylonsBuiltOrInProgress.First(p => p.IsCompleted()));
+                builder.Build(UnitType.Protoss_Forge, buildLocation);
+            }
+        }
+        else if (probeCount < buildSetting.ChangeToEarlyGameProbes)
+        {
+            LogToScreen("Training Probes - After Forge");
+            Tools.BuildProbe(Game, nexus);
+        }
+        else if (forge.IsCompleted() &&
+            probeCount >= buildSetting.ChangeToEarlyGameProbes)
+        {
+            currentGameState = GameState.EarlyGame;
+        }
+    }
+
+    private void EarlyGameLogic()
+    {
+        if (Game == null) return;
+        LogToScreen("EarlyGameLogic");
+
+        var nexus = Game.Self().GetUnits().FirstOrDefault(u => u.GetUnitType() == UnitType.Protoss_Nexus);
+        if (nexus == null)
+        {
+            Console.WriteLine("No Nexus found!");
+            return;
+        }
+
+        var builder = Tools.GetBuilder(Game, buildId);
+        if (builder == null)
+        {
+            Console.WriteLine("No builder found!");
+            return;
+        }
+
+        var probeCount = Tools.GetUnitCount(Game, UnitType.Protoss_Probe, true);
+        LogToScreen($"Probes: {probeCount}");
+
+        var pylonsCompleted = Tools.GetUnits(Game, UnitType.Protoss_Pylon);
+        LogToScreen($"Pylons Completed: {pylonsCompleted.Count()}");
+
+        var pylonsTotal = Tools.GetUnits(Game, UnitType.Protoss_Pylon, true);
+        LogToScreen($"Pylons Total: {pylonsTotal.Count()}");
+
+        var cannons = Tools.GetUnits(Game, UnitType.Protoss_Photon_Cannon, true);
+        LogToScreen($"Cannons: {cannons.Count()}");
+
+        var gateways = Tools.GetUnits(Game, UnitType.Protoss_Gateway, true);
+        LogToScreen($"Gateways: {gateways.Count()}");
+
+        if (cannons.Count() < buildSetting.EarlyCannonThreshold)
+        {
+            LogToScreen("Building Cannons - Early Game");
+            if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Photon_Cannon))
+            {
+                var buildLocation = Tools.GetBuildLocationByPylon(Game,
+                    UnitType.Protoss_Photon_Cannon, pylonsCompleted.First());
+                builder.Build(UnitType.Protoss_Photon_Cannon, buildLocation);
+            }
+        }
+        else if (gateways.Count() < buildSetting.EarlyGatewayThreshold)
+        {
+            LogToScreen("Building Gateways - Early Game");
+            
+            if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Gateway))
+            {
+                var buildLocation = Tools.GetBuildLocationByPylon(Game,
+                    UnitType.Protoss_Gateway, pylonsCompleted.First());
+                builder.Build(UnitType.Protoss_Gateway, buildLocation);
+            }
+            return;
+        }
+        else if (pylonsTotal.Count() < buildSetting.EarlyGamePylons)
+        {
+            LogToScreen("Building Pylon - Early Game");
+            if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Pylon))
+            {
+                var buildLocation = Tools.GetBuildLocationTowardBaseAccess(Game, mapTools,
+                    UnitType.Protoss_Pylon);
+                builder.Build(UnitType.Protoss_Pylon, buildLocation);
+            }
+        }
     }
 
     #region other
