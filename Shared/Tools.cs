@@ -80,7 +80,7 @@ public class Tools
         if (pylon.GetUnitType() != UnitType.Protoss_Pylon || !pylon.IsCompleted())
             return new TilePosition(0, 0);
 
-        var buildLocation = BuildLocation.Get(game, unitType, pylon.GetTilePosition(), 6, spacing);
+        var buildLocation = BuildLocation.Get(game, unitType, pylon.GetTilePosition(), 64, spacing);
         return buildLocation;
 
 

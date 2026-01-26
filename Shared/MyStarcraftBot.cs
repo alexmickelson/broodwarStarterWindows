@@ -156,6 +156,7 @@ public class MyStarcraftBot : DefaultBWListener
             }
         }
     }
+
     #region logging
 
     private void LogToScreen(string message)
@@ -170,6 +171,8 @@ public class MyStarcraftBot : DefaultBWListener
     {
         if (Game == null)
             return;
+
+        mapTools.DrawGrid();
 
         var myUnits = Game.Self().GetUnits();
         foreach (var unit in myUnits)
@@ -336,17 +339,32 @@ public class MyStarcraftBot : DefaultBWListener
                 builder.Build(UnitType.Protoss_Gateway, buildLocation);
             }
         }
-        else if (pylonsTotal.Count() < buildSetting.EarlyGamePylons)
+        else if (pylonsTotal.Count()< cannons.Count()/5)
         {
             LogToScreen("Building Pylon - Early Game");
             if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Pylon))
             {
-                var buildLocation = Tools.GetBuildLocationTowardBaseAccess(Game, mapTools,
-                    UnitType.Protoss_Pylon);
+                var buildLocation = Tools.GetBuildLocationByPylon(Game,
+                    UnitType.Protoss_Pylon, pylonsCompleted.First(), 7);
                 nextBuildLocation = buildLocation;
                 builder.Build(UnitType.Protoss_Pylon, buildLocation);
             }
         }
+
+        else
+        {
+            LogToScreen("Build cannons.");
+            if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Photon_Cannon))
+            {
+                var buildLocation = Tools.GetBuildLocationByPylon(Game,
+                    UnitType.Protoss_Photon_Cannon, 
+                    pylonsCompleted.OrderByDescending(p => p.GetID( )).First(), 
+                    0);
+                nextBuildLocation = buildLocation;
+                builder.Build(UnitType.Protoss_Photon_Cannon, buildLocation);
+            }
+        }
+
     }
 
     #region other
