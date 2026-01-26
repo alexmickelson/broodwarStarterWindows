@@ -94,4 +94,21 @@ public class Tools
             nexus.Train(UnitType.Protoss_Probe);
         }
     }
+
+    public static TilePosition BuildPylon(Game game, Unit builder, DefenseNode defenseNode)
+    {
+        if (game == null || builder == null || defenseNode == null) return new TilePosition(0, 0);
+
+        var buildLocation = BuildLocation.Get(game, UnitType.Protoss_Pylon, defenseNode.Position, 5, 2);
+        builder.Build(UnitType.Protoss_Pylon, buildLocation);
+        return buildLocation;
+    }
+
+    public static TilePosition GetBuildLocationByPylonInNode(Game game, UnitType unitType, DefenseNode defenseNode, int spacing = 2)
+    {
+        if (game == null || defenseNode == null) return new TilePosition(0, 0);
+
+        var buildLocation = BuildLocation.Get(game, unitType, defenseNode.Position, 5, spacing);
+        return buildLocation;
+    }
 }

@@ -36,4 +36,5 @@ public class BuildSetting
     public int EarlyCannonThreshold { get; set; } = 4;
     public int EarlyGatewayThreshold { get; set; } = 2;
     public int EarlyGamePylons { get; set; } = 3;
+    public int EarlyGameProbes { get; set; } = 20;
 }

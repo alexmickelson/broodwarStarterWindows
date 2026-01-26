@@ -4,7 +4,7 @@
     "InitialProbesToChangeState": 12,
 
     "EarlyCannonThreshold": 4,
-    "EarlyGatewayThreshold": 2,
-    "EarlyGameProbes": 20,
+    "EarlyGatewayThreshold": 1,
+    "EarlyGameProbes": 17,
     "EarlyGamePylons": 3
 }

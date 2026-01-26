@@ -31,6 +31,8 @@ public class MyStarcraftBot : DefaultBWListener
     BuildSetting buildSetting = new BuildSetting();
     private TilePosition nextBuildLocation = new TilePosition(0, 0);
 
+    DefenseNode currentDefenseNode = new DefenseNode(new TilePosition(0,0));
+
     #region start
     public void Connect()
     {
@@ -82,6 +84,12 @@ public class MyStarcraftBot : DefaultBWListener
         if (!mapTools.IsInitialized)
         {
             mapTools.Initialize(Game);
+            currentDefenseNode = 
+                mapTools.GetDefenseNodeAtTilePosition(
+                mapTools.GetBuildLocationTowardsBaseAccess(
+                    Game.Self().GetStartLocation()
+                ));
+
         }
         textLine = 10;
 
@@ -243,10 +251,7 @@ public class MyStarcraftBot : DefaultBWListener
             LogToScreen("Building Pylon - Initial");
             if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Pylon))
             {
-                var buildLocation = Tools.GetBuildLocationTowardBaseAccess(Game, mapTools,
-                    UnitType.Protoss_Pylon);
-                nextBuildLocation = buildLocation;
-                builder.Build(UnitType.Protoss_Pylon, buildLocation);
+                nextBuildLocation = Tools.BuildPylon(Game, builder, currentDefenseNode);
             }
             else
             {
@@ -327,6 +332,11 @@ public class MyStarcraftBot : DefaultBWListener
                 builder.Build(UnitType.Protoss_Photon_Cannon, buildLocation);
             }
         }
+        else if (probeCount < buildSetting.EarlyGameProbes)
+        {
+            LogToScreen($"Training Probes - Early Game - Target: {buildSetting.EarlyGameProbes}");
+            Tools.BuildProbe(Game, nexus);
+        }
         else if (gateways.Count() < buildSetting.EarlyGatewayThreshold)
         {
             LogToScreen("Building Gateways - Early Game");
@@ -339,15 +349,17 @@ public class MyStarcraftBot : DefaultBWListener
                 builder.Build(UnitType.Protoss_Gateway, buildLocation);
             }
         }
-        else if (pylonsTotal.Count()< cannons.Count()/5)
+        else if (pylonsTotal.Count()< cannons.Count()/4)
         {
             LogToScreen("Building Pylon - Early Game");
             if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Pylon))
             {
-                var buildLocation = Tools.GetBuildLocationByPylon(Game,
-                    UnitType.Protoss_Pylon, pylonsCompleted.First(), 7);
-                nextBuildLocation = buildLocation;
-                builder.Build(UnitType.Protoss_Pylon, buildLocation);
+                currentDefenseNode = mapTools.GetEmptyDefenseNodeNextToPopulatedGrid();
+                nextBuildLocation = Tools.BuildPylon(Game, builder, currentDefenseNode);
+            }
+            else
+            {
+                LogToScreen($"Constructing: {builder.IsConstructing()}; CanAfford: {Tools.CanAfford(Game, UnitType.Protoss_Pylon)}");
             }
         }
 
@@ -356,10 +368,8 @@ public class MyStarcraftBot : DefaultBWListener
             LogToScreen("Build cannons.");
             if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Photon_Cannon))
             {
-                var buildLocation = Tools.GetBuildLocationByPylon(Game,
-                    UnitType.Protoss_Photon_Cannon, 
-                    pylonsCompleted.OrderByDescending(p => p.GetID( )).First(), 
-                    0);
+                var buildLocation = Tools.GetBuildLocationByPylonInNode(Game,
+                    UnitType.Protoss_Photon_Cannon, currentDefenseNode, 0);
                 nextBuildLocation = buildLocation;
                 builder.Build(UnitType.Protoss_Photon_Cannon, buildLocation);
             }
@@ -381,6 +391,10 @@ public class MyStarcraftBot : DefaultBWListener
         if (text.Contains("/control"))
         {
             controlledByHuman = !controlledByHuman;
+        }
+        if (text.Contains("/dud"))
+        {
+            currentDefenseNode.IsDud = true;
         }
 
     }
