@@ -9,8 +9,10 @@ public class BuildLocation
     /// Uses custom logic for Protoss (pylon power), falls back to library for Terran/Zerg.
     /// </summary>
     public static TilePosition Get(Game game, UnitType unitType, TilePosition seedPosition, 
-        int maxRange)
+        int maxRange, bool alleyWay = false)
     {
+        // TODO: Creep, psi, alleyways
+
         if (game == null) return new TilePosition(0, 0);
         
         var creep = unitType.RequiresCreep();
@@ -18,7 +20,7 @@ public class BuildLocation
         // For Protoss buildings requiring pylon power, use custom implementation
         if (unitType.RequiresPsi())
         {
-            return FindProtossBuildLocation(game, unitType, seedPosition, maxRange);
+            return FindProtossBuildLocation(game, unitType, seedPosition, maxRange, alleyWay);
         }
         
         // For Terran, Zerg, and Protoss buildings without power requirements
@@ -33,7 +35,7 @@ public class BuildLocation
         Game game,
         UnitType unitType,
         TilePosition seedPosition,
-        int maxRange)
+        int maxRange, bool alleyWay = false)
     {
         if (!unitType.RequiresPsi())
             return seedPosition;
@@ -87,8 +89,8 @@ public class BuildLocation
             return false;
         }
         
-        // Check if we can build here (terrain, existing buildings, etc.)
-        if (!game.CanBuildHere(position, unitType))
+        // Check terrain and building collisions
+        if (!CanBuildHereWithCollisionCheck(game, unitType, position, buildWidth, buildHeight))
         {
             return false;
         }
@@ -100,6 +102,60 @@ public class BuildLocation
             {
                 return false;
             }
+        }
+        
+        return true;
+    }
+    
+    /// <summary>
+    /// Checks if a building can be placed at the position, including manual collision detection.
+    /// game.CanBuildHere() is buggy and doesn't properly check building overlap, so we validate manually.
+    /// </summary>
+    private static bool CanBuildHereWithCollisionCheck(
+        Game game,
+        UnitType unitType,
+        TilePosition position,
+        int buildWidth,
+        int buildHeight)
+    {
+        const int buffer = 4; // Tile buffer for buildings partially in range
+        
+        // Manual collision detection with existing buildings
+        var allUnits = game.GetAllUnits();
+        foreach (var unit in allUnits)
+        {
+            if (!unit.GetUnitType().IsBuilding())
+                continue;
+            
+            var unitPos = unit.GetTilePosition();
+            var unitWidth = unit.GetUnitType().TileWidth();
+            var unitHeight = unit.GetUnitType().TileHeight();
+            
+            // Filter out buildings that are definitely out of range (with buffer)
+            if (unitPos.X + unitWidth < position.X - buffer ||
+                unitPos.X > position.X + buildWidth + buffer ||
+                unitPos.Y + unitHeight < position.Y - buffer ||
+                unitPos.Y > position.Y + buildHeight + buffer)
+            {
+                continue; // Building is too far away to collide
+            }
+            
+            // Check if rectangles overlap
+            bool xOverlap = position.X < unitPos.X + unitWidth && 
+                           position.X + buildWidth > unitPos.X;
+            bool yOverlap = position.Y < unitPos.Y + unitHeight && 
+                           position.Y + buildHeight > unitPos.Y;
+            
+            if (xOverlap && yOverlap)
+            {
+                return false; // Building would overlap
+            }
+        }
+        
+        // Check terrain buildability (hopefully this part of the library works)
+        if (!game.CanBuildHere(position, unitType))
+        {
+            return false;
         }
         
         return true;
