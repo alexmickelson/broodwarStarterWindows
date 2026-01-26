@@ -259,7 +259,6 @@ public class MyStarcraftBot : DefaultBWListener
         {
             LogToScreen("Building Forge - Initial");
             if (pylonsBuiltOrInProgress.Any(p => p.IsCompleted()) &&
-                probeCount >= buildSetting.InitialProbesBeforeForge &&
                 !builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Forge))
             {
                 var buildLocation = Tools.GetBuildLocationByPylon(Game, UnitType.Protoss_Forge,
