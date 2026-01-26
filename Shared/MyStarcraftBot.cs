@@ -29,6 +29,7 @@ public class MyStarcraftBot : DefaultBWListener
     private int buildId = -1;
     private int textLine = 10;
     BuildSetting buildSetting = new BuildSetting();
+    private TilePosition nextBuildLocation = new TilePosition(0, 0);
 
     #region start
     public void Connect()
@@ -190,6 +191,10 @@ public class MyStarcraftBot : DefaultBWListener
                 .FirstOrDefault(u => u.GetID() == buildId);
             LogToScreen($"Build Id: {buildId}; IsConstructing: {builder?.IsConstructing()}");
         }
+        var buildTemp = nextBuildLocation.ToPosition();
+        Game.DrawTextMap(buildTemp.X, buildTemp.Y, "Build Location");
+        Game.DrawBoxMap(buildTemp.X, buildTemp.Y, buildTemp.X + 32, buildTemp.Y + 32,
+            Color.Red, false);
 
         // var buildings = Game.Self().GetUnits().Where(u => u.GetUnitType().IsBuilding());
         // foreach (var building in buildings)
@@ -225,9 +230,9 @@ public class MyStarcraftBot : DefaultBWListener
         var pylonsBuiltOrInProgress = Tools.GetUnits(Game, UnitType.Protoss_Pylon, true);
         LogToScreen($"Pylons: {pylonsBuiltOrInProgress.Count()}");
 
-        if (probeCount < buildSetting.FirstProbesToPylon)
+        if (probeCount < buildSetting.InitialFirstProbes)
         {
-            LogToScreen("Training Probes - Initial");
+            LogToScreen($"Training Probes - Initial - Target: {buildSetting.InitialFirstProbes}");
             Tools.BuildProbe(Game, nexus);
         }
         else if (!pylonsBuiltOrInProgress.Any())
@@ -237,33 +242,39 @@ public class MyStarcraftBot : DefaultBWListener
             {
                 var buildLocation = Tools.GetBuildLocationTowardBaseAccess(Game, mapTools,
                     UnitType.Protoss_Pylon);
+                nextBuildLocation = buildLocation;
                 builder.Build(UnitType.Protoss_Pylon, buildLocation);
             }
+            else
+            {
+                LogToScreen($"Constructing: {builder.IsConstructing()}; CanAfford: {Tools.CanAfford(Game, UnitType.Protoss_Pylon)}");
+            }
         }
-        else if (probeCount < buildSetting.ForgeProbeThreshold)
+        else if (probeCount < buildSetting.InitialProbesBeforeForge)
         {
-            LogToScreen("Training Probes - Before Forge");
+            LogToScreen($"Training Probes - Before Forge - Target: {buildSetting.InitialProbesBeforeForge}");
             Tools.BuildProbe(Game, nexus);
         }
         else if (forge == null)
         {
             LogToScreen("Building Forge - Initial");
             if (pylonsBuiltOrInProgress.Any(p => p.IsCompleted()) &&
-                probeCount >= buildSetting.ForgeProbeThreshold &&
+                probeCount >= buildSetting.InitialProbesBeforeForge &&
                 !builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Forge))
             {
                 var buildLocation = Tools.GetBuildLocationByPylon(Game, UnitType.Protoss_Forge,
                     pylonsBuiltOrInProgress.First(p => p.IsCompleted()));
+                nextBuildLocation = buildLocation;
                 builder.Build(UnitType.Protoss_Forge, buildLocation);
             }
         }
-        else if (probeCount < buildSetting.ChangeToEarlyGameProbes)
+        else if (probeCount < buildSetting.InitialProbesToChangeState)
         {
-            LogToScreen("Training Probes - After Forge");
+            LogToScreen($"Training Probes - After Forge - Target: {buildSetting.InitialProbesToChangeState}");
             Tools.BuildProbe(Game, nexus);
         }
         else if (forge.IsCompleted() &&
-            probeCount >= buildSetting.ChangeToEarlyGameProbes)
+            probeCount >= buildSetting.InitialProbesToChangeState)
         {
             currentGameState = GameState.EarlyGame;
         }
@@ -310,6 +321,7 @@ public class MyStarcraftBot : DefaultBWListener
             {
                 var buildLocation = Tools.GetBuildLocationByPylon(Game,
                     UnitType.Protoss_Photon_Cannon, pylonsCompleted.First());
+                nextBuildLocation = buildLocation;
                 builder.Build(UnitType.Protoss_Photon_Cannon, buildLocation);
             }
         }
@@ -321,6 +333,7 @@ public class MyStarcraftBot : DefaultBWListener
             {
                 var buildLocation = Tools.GetBuildLocationByPylon(Game,
                     UnitType.Protoss_Gateway, pylonsCompleted.First());
+                nextBuildLocation = buildLocation;
                 builder.Build(UnitType.Protoss_Gateway, buildLocation);
             }
             return;
@@ -332,6 +345,7 @@ public class MyStarcraftBot : DefaultBWListener
             {
                 var buildLocation = Tools.GetBuildLocationTowardBaseAccess(Game, mapTools,
                     UnitType.Protoss_Pylon);
+                nextBuildLocation = buildLocation;
                 builder.Build(UnitType.Protoss_Pylon, buildLocation);
             }
         }

@@ -11,10 +11,10 @@ public class Tools
         if (includeIncomplete && unitType.IsBuilding())
         {
             var builder = game.Self().GetUnits().Where(u => u.GetUnitType().IsWorker() &&
-                u.IsConstructing()&& u.GetBuildType() == unitType);
+                u.IsConstructing() && u.GetBuildType() == unitType);
             return GetUnits(game, unitType, true).Count + builder.Count();
         }
-        return game.Self().GetUnits().Count(u => u.GetUnitType() == unitType 
+        return game.Self().GetUnits().Count(u => u.GetUnitType() == unitType
             && (includeIncomplete || u.IsCompleted()));
     }
 
@@ -77,14 +77,13 @@ public class Tools
     public static TilePosition GetBuildLocationByPylon(Game game, UnitType unitType, Unit pylon)
     {
         if (game == null) return new TilePosition(0, 0);
-        if (pylon.GetUnitType() != UnitType.Protoss_Pylon || !pylon.IsCompleted()) 
+        if (pylon.GetUnitType() != UnitType.Protoss_Pylon || !pylon.IsCompleted())
             return new TilePosition(0, 0);
-        
-            var buildLocation = game.GetBuildLocation(
-                unitType, pylon.GetTilePosition(), 4, false);
-            return buildLocation;
 
-        
+        var buildLocation = game.GetBuildLocation(unitType, pylon.GetTilePosition(), 6, false);
+        return buildLocation;
+
+
     }
 
     public static void BuildProbe(Game game, Unit nexus)
