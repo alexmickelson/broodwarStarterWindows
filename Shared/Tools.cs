@@ -74,13 +74,13 @@ public class Tools
         return builder;
     }
 
-    public static TilePosition GetBuildLocationByPylon(Game game, UnitType unitType, Unit pylon)
+    public static TilePosition GetBuildLocationByPylon(Game game, UnitType unitType, Unit pylon, int spacing = 2)
     {
         if (game == null) return new TilePosition(0, 0);
         if (pylon.GetUnitType() != UnitType.Protoss_Pylon || !pylon.IsCompleted())
             return new TilePosition(0, 0);
 
-        var buildLocation = BuildLocation.Get(game, unitType, pylon.GetTilePosition(), 6);
+        var buildLocation = BuildLocation.Get(game, unitType, pylon.GetTilePosition(), 6, spacing);
         return buildLocation;
 
 

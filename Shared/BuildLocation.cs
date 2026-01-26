@@ -9,7 +9,7 @@ public class BuildLocation
     /// Uses custom logic for Protoss (pylon power), falls back to library for Terran/Zerg.
     /// </summary>
     public static TilePosition Get(Game game, UnitType unitType, TilePosition seedPosition, 
-        int maxRange, bool alleyWay = false)
+        int maxRange, int spacing = 2)
     {
         // TODO: Creep, psi, alleyways
 
@@ -20,7 +20,7 @@ public class BuildLocation
         // For Protoss buildings requiring pylon power, use custom implementation
         if (unitType.RequiresPsi())
         {
-            return FindProtossBuildLocation(game, unitType, seedPosition, maxRange, alleyWay);
+            return FindProtossBuildLocation(game, unitType, seedPosition, maxRange, spacing);
         }
         
         // For Terran, Zerg, and Protoss buildings without power requirements
@@ -35,7 +35,7 @@ public class BuildLocation
         Game game,
         UnitType unitType,
         TilePosition seedPosition,
-        int maxRange, bool alleyWay = false)
+        int maxRange, int spacing)
     {
         if (!unitType.RequiresPsi())
             return seedPosition;
@@ -59,7 +59,7 @@ public class BuildLocation
                         seedPosition.Y + dy);
                     
                     // Check if position is valid and buildable
-                    if (IsValidBuildLocation(game, unitType, testPos, buildWidth, buildHeight))
+                    if (IsValidBuildLocation(game, unitType, testPos, buildWidth, buildHeight, spacing))
                     {
                         return testPos;
                     }
@@ -79,7 +79,8 @@ public class BuildLocation
         UnitType unitType,
         TilePosition position,
         int buildWidth,
-        int buildHeight)
+        int buildHeight,
+        int spacing)
     {
         // Check map bounds
         if (position.X < 0 || position.Y < 0 ||
@@ -90,7 +91,7 @@ public class BuildLocation
         }
         
         // Check terrain and building collisions
-        if (!CanBuildHereWithCollisionCheck(game, unitType, position, buildWidth, buildHeight))
+        if (!CanBuildHereWithCollisionCheck(game, unitType, position, buildWidth, buildHeight, spacing))
         {
             return false;
         }
@@ -116,7 +117,8 @@ public class BuildLocation
         UnitType unitType,
         TilePosition position,
         int buildWidth,
-        int buildHeight)
+        int buildHeight,
+        int spacing)
     {
         const int buffer = 4; // Tile buffer for buildings partially in range
         
@@ -131,24 +133,24 @@ public class BuildLocation
             var unitWidth = unit.GetUnitType().TileWidth();
             var unitHeight = unit.GetUnitType().TileHeight();
             
-            // Filter out buildings that are definitely out of range (with buffer)
-            if (unitPos.X + unitWidth < position.X - buffer ||
-                unitPos.X > position.X + buildWidth + buffer ||
-                unitPos.Y + unitHeight < position.Y - buffer ||
-                unitPos.Y > position.Y + buildHeight + buffer)
+            // Filter out buildings that are definitely out of range (with buffer + spacing)
+            if (unitPos.X + unitWidth + spacing < position.X - buffer ||
+                unitPos.X > position.X + buildWidth + buffer + spacing ||
+                unitPos.Y + unitHeight + spacing < position.Y - buffer ||
+                unitPos.Y > position.Y + buildHeight + buffer + spacing)
             {
                 continue; // Building is too far away to collide
             }
             
-            // Check if rectangles overlap
-            bool xOverlap = position.X < unitPos.X + unitWidth && 
-                           position.X + buildWidth > unitPos.X;
-            bool yOverlap = position.Y < unitPos.Y + unitHeight && 
-                           position.Y + buildHeight > unitPos.Y;
+            // Check if rectangles overlap (including spacing between buildings)
+            bool xOverlap = position.X < unitPos.X + unitWidth + spacing && 
+                           position.X + buildWidth + spacing > unitPos.X;
+            bool yOverlap = position.Y < unitPos.Y + unitHeight + spacing && 
+                           position.Y + buildHeight + spacing > unitPos.Y;
             
             if (xOverlap && yOverlap)
             {
-                return false; // Building would overlap
+                return false; // Building would overlap or violate spacing
             }
         }
         

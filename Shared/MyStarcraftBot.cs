@@ -319,7 +319,7 @@ public class MyStarcraftBot : DefaultBWListener
             if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Photon_Cannon))
             {
                 var buildLocation = Tools.GetBuildLocationByPylon(Game,
-                    UnitType.Protoss_Photon_Cannon, pylonsCompleted.First());
+                    UnitType.Protoss_Photon_Cannon, pylonsCompleted.First(), 0);
                 nextBuildLocation = buildLocation;
                 builder.Build(UnitType.Protoss_Photon_Cannon, buildLocation);
             }
@@ -331,11 +331,10 @@ public class MyStarcraftBot : DefaultBWListener
             if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Gateway))
             {
                 var buildLocation = Tools.GetBuildLocationByPylon(Game,
-                    UnitType.Protoss_Gateway, pylonsCompleted.First());
+                    UnitType.Protoss_Gateway, pylonsCompleted.First(), 1);
                 nextBuildLocation = buildLocation;
                 builder.Build(UnitType.Protoss_Gateway, buildLocation);
             }
-            return;
         }
         else if (pylonsTotal.Count() < buildSetting.EarlyGamePylons)
         {
