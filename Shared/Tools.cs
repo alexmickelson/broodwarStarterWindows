@@ -52,8 +52,8 @@ public class Tools
         if (game == null) return new TilePosition(0, 0);
         var location = mapTools.GetBuildLocationTowardsBaseAccess(
                             game.Self().GetStartLocation());
-        var buildLocation = game.GetBuildLocation(
-            unitType, location, 5, false);
+        var buildLocation = BuildLocation.Get(
+            game, unitType, location, 5);
         return buildLocation;
     }
 
@@ -80,7 +80,7 @@ public class Tools
         if (pylon.GetUnitType() != UnitType.Protoss_Pylon || !pylon.IsCompleted())
             return new TilePosition(0, 0);
 
-        var buildLocation = game.GetBuildLocation(unitType, pylon.GetTilePosition(), 6, false);
+        var buildLocation = BuildLocation.Get(game, unitType, pylon.GetTilePosition(), 6);
         return buildLocation;
 
 
