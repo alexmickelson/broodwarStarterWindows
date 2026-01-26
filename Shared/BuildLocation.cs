@@ -2,6 +2,12 @@ using BWAPI.NET;
 
 namespace Shared;
 
+///<summary>
+/// This class works around BWAPI's buggy building placement logic,
+/// initially focusing on Protoss buildings that require pylon power,
+/// because that is where the bug was found. May be necessary 
+/// for Terran and Zerg, TBD.
+/// </summary>
 public class BuildLocation
 {
     /// <summary>
@@ -11,8 +17,6 @@ public class BuildLocation
     public static TilePosition Get(Game game, UnitType unitType, TilePosition seedPosition, 
         int maxRange, int spacing = 2)
     {
-        // TODO: Creep, psi, alleyways
-
         if (game == null) return new TilePosition(0, 0);
         
         var creep = unitType.RequiresCreep();
