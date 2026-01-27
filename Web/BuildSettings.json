@@ -6,5 +6,7 @@
     "EarlyCannonThreshold": 4,
     "EarlyGatewayThreshold": 1,
     "EarlyGameProbes": 17,
-    "EarlyGamePylons": 3
+    "EarlyGamePylons": 3,
+    "EarlyCannonTransition": 16
+
 }

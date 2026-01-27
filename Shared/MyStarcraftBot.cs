@@ -8,6 +8,7 @@ public enum GameState
 {
     IntialGame,
     EarlyGame,
+    NaturalExpansion,
     MidGame,
     LateGame,
 }
@@ -31,7 +32,8 @@ public class MyStarcraftBot : DefaultBWListener
     BuildSetting buildSetting = new BuildSetting();
     private TilePosition nextBuildLocation = new TilePosition(0, 0);
 
-    DefenseNode currentDefenseNode = new DefenseNode(new TilePosition(0,0));
+    DefenseNode currentDefenseNode = new DefenseNode(new TilePosition(0, 0));
+    TilePosition? naturalExpansion = null;
 
     #region start
     public void Connect()
@@ -84,7 +86,7 @@ public class MyStarcraftBot : DefaultBWListener
         if (!mapTools.IsInitialized)
         {
             mapTools.Initialize(Game);
-            currentDefenseNode = 
+            currentDefenseNode =
                 mapTools.GetDefenseNodeAtTilePosition(
                 mapTools.GetBuildLocationTowardsBaseAccess(
                     Game.Self().GetStartLocation()
@@ -110,12 +112,14 @@ public class MyStarcraftBot : DefaultBWListener
         {
             InitialGameLogic();
         }
-
         else if (currentGameState == GameState.EarlyGame)
         {
             EarlyGameLogic();
         }
-
+        else if (currentGameState == GameState.NaturalExpansion)
+        {
+            NaturalExpansionLogic();
+        }
 
     }
 
@@ -188,7 +192,7 @@ public class MyStarcraftBot : DefaultBWListener
             if (unit.IsCompleted())
                 Game.DrawTextMap(unit.GetPosition().X + 20, unit.GetPosition().Y,
                     $"{unit.GetID()}-{unit.GetHitPoints()}");
-            else 
+            else
                 Game.DrawTextMap(unit.GetPosition().X + 20, unit.GetPosition().Y + 10,
                     $"{unit.GetID()}-{unit.GetRemainingBuildTime()}");
         }
@@ -340,7 +344,7 @@ public class MyStarcraftBot : DefaultBWListener
         else if (gateways.Count() < buildSetting.EarlyGatewayThreshold)
         {
             LogToScreen("Building Gateways - Early Game");
-            
+
             if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Gateway))
             {
                 var buildLocation = Tools.GetBuildLocationByPylon(Game,
@@ -349,7 +353,7 @@ public class MyStarcraftBot : DefaultBWListener
                 builder.Build(UnitType.Protoss_Gateway, buildLocation);
             }
         }
-        else if (pylonsTotal.Count()< cannons.Count()/4)
+        else if (pylonsTotal.Count() < cannons.Count() / 4)
         {
             LogToScreen("Building Pylon - Early Game");
             if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Pylon))
@@ -362,8 +366,7 @@ public class MyStarcraftBot : DefaultBWListener
                 LogToScreen($"Constructing: {builder.IsConstructing()}; CanAfford: {Tools.CanAfford(Game, UnitType.Protoss_Pylon)}");
             }
         }
-
-        else
+        else if (cannons.Count() < buildSetting.EarlyCannonTransition)
         {
             LogToScreen("Build cannons.");
             if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Photon_Cannon))
@@ -372,6 +375,60 @@ public class MyStarcraftBot : DefaultBWListener
                     UnitType.Protoss_Photon_Cannon, currentDefenseNode, 0);
                 nextBuildLocation = buildLocation;
                 builder.Build(UnitType.Protoss_Photon_Cannon, buildLocation);
+            }
+        }
+        else if (probeCount >= buildSetting.EarlyGameProbes)
+        {
+            currentGameState = GameState.NaturalExpansion;
+        }
+
+    }
+
+    public void NaturalExpansionLogic()
+    {
+        LogToScreen("NaturalExpansionLogic");
+        if (Game == null) return;
+
+        if (naturalExpansion == null)
+        {
+            naturalExpansion = mapTools.GetNaturalExpansionLocation(Game.Self().GetStartLocation());
+            currentDefenseNode = mapTools.GetDefenseNodeAtTilePosition(naturalExpansion.Value);
+            mapTools.PopulateNodes();
+        }
+        if (currentDefenseNode == null)
+        {
+            Console.WriteLine("No Defense Node found for Natural Expansion!");
+            return;
+        }
+
+        var builder = Tools.GetBuilder(Game, buildId);
+        if (builder == null)
+        {
+            Console.WriteLine("No builder found!");
+            return;
+        }
+
+        if (currentDefenseNode.Pylons == 0)
+        {
+            LogToScreen("Building Pylon - Natural Expansion");
+            if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Pylon))
+            {
+                nextBuildLocation = Tools.BuildPylon(Game, builder, currentDefenseNode);
+            }
+            else
+            {
+                LogToScreen($"Constructing: {builder.IsConstructing()}; CanAfford: {Tools.CanAfford(Game, UnitType.Protoss_Pylon)}");
+            }
+        }
+        else if (currentDefenseNode.Cannons < 4)
+        {
+            mapTools.PopulateNodes();
+            LogToScreen("Building Cannons - Natural Expansion");
+            if (!builder.IsConstructing() && Tools.CanAfford(Game, UnitType.Protoss_Photon_Cannon))
+            {
+                nextBuildLocation = Tools.GetBuildLocationByPylonInNode(Game,
+                    UnitType.Protoss_Photon_Cannon, currentDefenseNode, 0);;
+                builder.Build(UnitType.Protoss_Photon_Cannon, nextBuildLocation);
             }
         }
 

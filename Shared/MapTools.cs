@@ -146,11 +146,8 @@ public class MapTools
         return GetDefenseNodeAtTilePosition(newPosition);
     }
 
-    public DefenseNode GetEmptyDefenseNodeNextToPopulatedGrid()
+    public void PopulateNodes()
     {
-        if (!IsInitialized || Game == null)
-            return new DefenseNode(new TilePosition(0, 0));
-
         foreach (var node in MapGrid.Where(n => n.IsWalkable))
         {
             node.Cannons = Game.Self().GetUnits()
@@ -181,6 +178,14 @@ public class MapTools
                 node.HasPopulatedNeighbor = neighbors.Any(n => n.Pylons > 0);
             }
         }
+    }
+
+    public DefenseNode GetEmptyDefenseNodeNextToPopulatedGrid()
+    {
+        if (!IsInitialized || Game == null)
+            return new DefenseNode(new TilePosition(0, 0));
+
+        PopulateNodes();
 
         // Perform BFS to find all walkable nodes reachable from populated nodes
         var populatedNodes = MapGrid.Where(n => n.Pylons > 0 && n.IsWalkable);
@@ -226,5 +231,53 @@ public class MapTools
                 Math.Pow(n.Position.X - startLocation.X, 2) +
                 Math.Pow(n.Position.Y - startLocation.Y, 2))
             ?? new DefenseNode(new TilePosition(0, 0));
+    }
+
+    public TilePosition GetNaturalExpansionLocation(TilePosition mainBaseLocation)
+    {
+        if (!IsInitialized || Game == null)
+            return new TilePosition(0, 0);
+
+        // Breadth-first search to find expansion locations
+        Queue<TilePosition> toExplore = new Queue<TilePosition>();
+        HashSet<TilePosition> explored = new HashSet<TilePosition>();
+
+        toExplore.Enqueue(mainBaseLocation);
+        explored.Add(mainBaseLocation);
+        List<TilePosition> expansions = new List<TilePosition>();
+
+        while (toExplore.Count > 0)
+        {
+            var current = toExplore.Dequeue();
+
+            // Check if current tile has minerals and is not at the main base
+            var units = Game.GetUnitsOnTile(current);
+            bool hasMinerals = units.Any(u => u.GetUnitType().IsMineralField());
+            double distanceToMain = Math.Sqrt(Math.Pow(current.X - mainBaseLocation.X, 2) + Math.Pow(current.Y - mainBaseLocation.Y, 2));
+            if (hasMinerals && distanceToMain > 20) // Threshold to exclude main base minerals
+            {
+                return current; // Return the closest expansion location
+            }
+
+            // Add adjacent tiles to explore
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    if (dx == 0 && dy == 0) continue;
+                    var neighbor = new TilePosition(current.X + dx, current.Y + dy);
+                    if (neighbor.X >= 0 && neighbor.X < Game.MapWidth() &&
+                        neighbor.Y >= 0 && neighbor.Y < Game.MapHeight() &&
+                        !explored.Contains(neighbor))
+                    {
+                        explored.Add(neighbor);
+                        toExplore.Enqueue(neighbor);
+                    }
+                }
+            }
+        }
+
+        // If no expansion found, return default
+        return new TilePosition(0, 0);
     }
 }
