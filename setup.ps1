@@ -44,10 +44,7 @@ function Configure-Registry {
         [string]$InstallPath
     )
     
-    Write-Host "Configuring registry..." -ForegroundColor Cyan
-    
     New-Item -Path "HKCU:\Software\Chaoslauncher\Launcher" -Force | Out-Null
-    Set-ItemProperty "HKCU:\Software\Chaoslauncher\Launcher" -Name "ScPath" -Value (Resolve-Path $InstallPath).Path -Type String
     Set-ItemProperty "HKCU:\Software\Chaoslauncher\Launcher" -Name "GameVersion" -Value "Starcraft 1.16.1"
     Set-ItemProperty "HKCU:\Software\Chaoslauncher\Launcher" -Name "RunScOnStartup" -Value 1 -Type DWord
     
@@ -55,15 +52,15 @@ function Configure-Registry {
     Set-ItemProperty "HKCU:\Software\Chaoslauncher\PluginsEnabled" -Name "BWAPI 4.4.0 Injector [RELEASE]" -Value 1 -Type DWord
     Set-ItemProperty "HKCU:\Software\Chaoslauncher\PluginsEnabled" -Name "W-MODE 1.02" -Value 1 -Type DWord
     
-    # HKCU Blizzard Entertainment registry keys
-    New-Item -Path "HKCU:\SOFTWARE\Blizzard Entertainment\Starcraft" -Force | Out-Null
-    Set-ItemProperty "HKCU:\SOFTWARE\Blizzard Entertainment\Starcraft" -Name "InstallPath" -Value (Resolve-Path $InstallPath).Path -Type ExpandString
-    Set-ItemProperty "HKCU:\SOFTWARE\Blizzard Entertainment\Starcraft" -Name "Program" -Value (Join-Path (Resolve-Path $InstallPath).Path "StarCraft.exe") -Type ExpandString
+    $resolvedPath = (Resolve-Path $InstallPath).Path
     
-    # Disable intro and tips
-    Set-ItemProperty "HKCU:\SOFTWARE\Blizzard Entertainment\Starcraft" -Name "Intro" -Value "0" -Type String
-    Set-ItemProperty "HKCU:\SOFTWARE\Blizzard Entertainment\Starcraft" -Name "IntroX" -Value "0" -Type String
-    Set-ItemProperty "HKCU:\SOFTWARE\Blizzard Entertainment\Starcraft" -Name "Tip" -Value "0" -Type String
+    Write-Host "`n`nPress Enter to open Chaoslauncher, then go to settings and put in this path: " -ForegroundColor Yellow -NoNewline
+    Write-Host $resolvedPath -ForegroundColor Green
+    
+    Write-Host "also, turn off the 'warn about missing admin permissions' setting: " -ForegroundColor Yellow
+
+    Read-Host
+    & "$PSScriptRoot\Starcraft\BWAPI\Chaoslauncher\Chaoslauncher.exe"
 }
 
 $url = "https://snow0-my.sharepoint.com/:u:/g/personal/alex_mickelson_snow_edu1/IQDss8Kj45-XRrhHa0wSm9OdAcdmTZTAzXHzVoUBATpH4nM?e=nPYQfx&download=1"
@@ -76,5 +73,3 @@ if (Test-Path $dest) {
     Download-StarCraft -Url $url -ZipPath $zip -Destination $dest
 }
 Configure-Registry -InstallPath $dest
-
-Write-Host "Installation complete!" -ForegroundColor Green

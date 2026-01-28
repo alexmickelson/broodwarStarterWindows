@@ -153,11 +153,19 @@
         myStarcraftBot.StatusChanged += Refresh;
     }
 
+    private bool _wasInGame = false;
+    
     private void Refresh()
     {
         if (myStarcraftBot.InGame)
         {
             _isLaunching = false;
+            _wasInGame = true;
+        }
+        else if (_wasInGame)
+        {
+            _wasInGame = false;
+            CloseGame();
         }
         InvokeAsync(StateHasChanged);
     }
