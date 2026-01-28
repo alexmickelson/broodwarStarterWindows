@@ -5,3 +5,6 @@ Starcraft.zip
 starcraft.zip
 starcraft
 userGamePreference.json
+
+dotnet-sdk-*.exe
+launch.bat
