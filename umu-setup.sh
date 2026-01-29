@@ -14,7 +14,7 @@ fi
 
 # Unzip Starcraft.zip to Starcraft directory if not already unzipped
 if [ ! -d Starcraft ]; then
-	unzip Starcraft.zip -d Starcraft
+	unzip Starcraft.zip
 fi
 
 umu-run ./dotnet-sdk-9.0.310-win-x64.exe
