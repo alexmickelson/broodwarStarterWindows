@@ -20,4 +20,5 @@ fi
 umu-run ./dotnet-sdk-9.0.310-win-x64.exe
 
 # run with:
-# nix-shell -p umu-launcher --run 'umu-run dotnet watch --project Web'; killall dotnet.exe
+# nix-shell -p umu-launcher --run 'umu-run dotnet watch --project Web'
+# killall dotnet.exe
