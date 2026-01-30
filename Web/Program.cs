@@ -27,6 +27,14 @@ app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 var starcraftService = app.Services.GetRequiredService<StarCraftService>();
 
+app.MapGet(
+    "/api/unit-data",
+    () =>
+    {
+        return SharedWebStorage.UnitInfoList;
+    }
+);
+
 app.Run();
 
 starcraftService.StopAndReset();

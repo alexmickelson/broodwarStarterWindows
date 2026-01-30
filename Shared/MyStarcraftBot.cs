@@ -59,6 +59,14 @@ public class MyStarcraftBot : DefaultBWListener
             GameSpeedToSet = null;
         }
         Game.DrawTextScreen(100, 100, "Hello Bot!");
+
+        SharedWebStorage.UnitInfoList = Game.GetAllUnits()
+            .Select(u => new WebUnitInfo(
+                u.GetID(),
+                u.GetUnitType().ToString(),
+                u.GetOrder().ToString()
+            ))
+            .ToList();
     }
 
     public override void OnUnitComplete(Unit unit) { }
