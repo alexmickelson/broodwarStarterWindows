@@ -1,11 +1,16 @@
-interface WebUnitInfo {
-  Id: number;
-  UnitTypeName: string;
-  CurrentOrder: string;
-}
+import { Toaster } from "react-hot-toast";
+import { Route, Routes } from "react-router";
+import { UnitListPage } from "./features/UnitListPage";
 
 function App() {
-  return <>hi</>;
+  return (
+    <>
+      <Toaster />
+      <Routes>
+        <Route path="/" element={<UnitListPage />} />
+      </Routes>
+    </>
+  );
 }
 
 export default App;

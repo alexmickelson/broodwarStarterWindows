@@ -51,22 +51,32 @@ public class MyStarcraftBot : DefaultBWListener
 
     public override void OnFrame()
     {
-        if (Game == null)
+        var game = Game;
+        if (game == null || !InGame)
             return;
-        if (GameSpeedToSet != null)
-        {
-            Game.SetLocalSpeed(GameSpeedToSet.Value);
-            GameSpeedToSet = null;
-        }
-        Game.DrawTextScreen(100, 100, "Hello Bot!");
 
-        SharedWebStorage.UnitInfoList = Game.GetAllUnits()
-            .Select(u => new WebUnitInfo(
-                u.GetID(),
-                u.GetUnitType().ToString(),
-                u.GetOrder().ToString()
-            ))
-            .ToList();
+        // Guard against accessing game state after elimination
+        try
+        {
+            if (GameSpeedToSet != null)
+            {
+                game.SetLocalSpeed(GameSpeedToSet.Value);
+                GameSpeedToSet = null;
+            }
+            game.DrawTextScreen(100, 100, "Hello Bot!");
+
+            SharedWebStorage.UnitInfoList = game.GetAllUnits()
+                .Select(u => new WebUnitInfo(
+                    u.GetID(),
+                    u.GetUnitType().ToString(),
+                    u.GetOrder().ToString()
+                ))
+                .ToList();
+        }
+        catch
+        {
+            // Ignore errors after elimination - stay connected but idle
+        }
     }
 
     public override void OnUnitComplete(Unit unit) { }
