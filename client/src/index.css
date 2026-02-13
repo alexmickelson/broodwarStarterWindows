@@ -3,3 +3,100 @@
 body {
   @apply bg-green-950 text-green-200;
 }
+
+.aiOutput h1 {
+  @apply text-3xl font-bold mb-4 mt-6;
+}
+
+.aiOutput h2 {
+  @apply text-2xl font-bold mb-3 mt-5;
+}
+
+.aiOutput h3 {
+  @apply text-xl font-semibold mb-2 mt-4;
+}
+
+.aiOutput h4 {
+  @apply text-lg font-semibold mb-2 mt-3;
+}
+
+.aiOutput h5 {
+  @apply text-base font-semibold mb-2 mt-3;
+}
+
+.aiOutput h6 {
+  @apply text-sm font-semibold mb-2 mt-2;
+}
+
+.aiOutput p {
+  @apply mb-4 leading-relaxed;
+}
+
+.aiOutput ul {
+  @apply list-disc list-inside mb-4 space-y-1 ml-4;
+}
+
+.aiOutput ol {
+  @apply list-decimal list-inside mb-4 space-y-1 ml-4;
+}
+
+.aiOutput li {
+  @apply ml-2;
+}
+
+.aiOutput a {
+  @apply underline;
+}
+
+.aiOutput code {
+  @apply px-1.5 py-0.5 rounded text-sm font-mono;
+}
+
+.aiOutput pre {
+  @apply p-4 rounded mb-4 overflow-x-auto;
+}
+
+.aiOutput pre code {
+  @apply p-0;
+}
+
+.aiOutput blockquote {
+  @apply border-l-4 pl-4 italic my-4;
+}
+
+.aiOutput strong {
+  @apply font-bold;
+}
+
+.aiOutput em {
+  @apply italic;
+}
+
+.aiOutput hr {
+  @apply my-6;
+}
+
+.aiOutput img {
+  @apply max-w-full h-auto rounded my-4;
+}
+
+.aiOutput table {
+  @apply w-full border-collapse mb-4;
+}
+
+.aiOutput thead {
+}
+
+.aiOutput th {
+  @apply border px-4 py-2 text-left font-semibold;
+}
+
+.aiOutput td {
+  @apply border px-4 py-2;
+}
+
+.aiOutput tr:nth-child(even) {
+}
+
+.aiOutput div {
+}
