@@ -1,0 +1,58 @@
+@keycloak_url=https://auth.snowse-ts.duckdns.org
+
+###
+# create challenge: echo -n "randomsecretstringrandomsecretstringrandomsecretstringrandomsecretstring" | sha256sum -b | xxd -p -r | base64 | tr '/+' '_-' | tr -d '='
+# code_challenge: wjyPi7DnThs7N3PS9S9t2bLrtdrhXxU39zx1sBoGx90
+# i think code_verifier has length requirements
+# @name first
+
+get {{keycloak_url}}/realms/frontend/protocol/openid-connect/auth
+    ?client_id=alex-react
+    &redirect_uri=http://doestntExist/callback
+    &response_type=code
+    &response_mode=fragment
+    &state=random-response-string
+    &code_challenge=wjyPi7DnThs7N3PS9S9t2bLrtdrhXxU39zx1sBoGx90
+    &code_challenge_method=S256
+    &scope=profile
+
+### get url from action of previous form
+### & is going to be html escaped
+# @name manualLogin
+post https://auth.snowse-ts.duckdns.org/realms/frontend/login-actions/authenticate
+  ?session_code=KXu916DZGFmhW52-saqpXZY21n4KxG7DcXiE8EGm9jQ
+  &execution=fde757c0-14a7-49a9-90f4-d0639cc84bbf
+  &client_id=alex-react
+  &tab_id=lNv-Pbiz62c
+  &client_data=eyJydSI6Imh0dHA6Ly9kb2VzdG50RXhpc3QvY2FsbGJhY2siLCJydCI6ImNvZGUiLCJybSI6ImZyYWdtZW50Iiwic3QiOiJyYW5kb20tcmVzcG9uc2Utc3RyaW5nIn0
+Content-Type: application/x-www-form-urlencoded
+Cookie: {{first.response.headers.Set-Cookie}}
+
+username=alex
+&password=test
+
+# http://doestntExist/callback
+# state=random-response-string
+# &session_state=afdc58b2-5618-42df-9ce8-34f4d1aad42b
+# &iss=https%3A%2F%2Fauth.snowse-ts.duckdns.org%2Frealms%2Ffrontend
+# &code=0d4674d5-2345-4cb8-ae33-1dfc417bced3.afdc58b2-5618-42df-9ce8-34f4d1aad42b.deccc6f1-3c83-4c46-a957-039ea6065589
+
+###
+# @name getToken
+post {{keycloak_url}}/auth/realms/frontend/protocol/openid-connect/token
+Cookie: {{first.response.headers.Set-Cookie}}
+Content-Type: application/x-www-form-urlencoded
+
+client_id=alex-react
+&code=0d4674d5-2345-4cb8-ae33-1dfc417bced3.afdc58b2-5618-42df-9ce8-34f4d1aad42b.deccc6f1-3c83-4c46-a957-039ea6065589
+&redirect_uri=http://doestntExist/callback
+&code_verifier=randomsecretstringrandomsecretstringrandomsecretstringrandomsecretstring
+&grant_type=authorization_code
+
+
+### 
+
+# @name useToken
+
+get {{keycloak_url}}/api/Admin
+Authorization: Bearer {{getToken.response.body.access_token}}
